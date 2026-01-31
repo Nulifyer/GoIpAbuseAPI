@@ -1,0 +1,37 @@
+{
+  "name": "Check IP Docker Service",
+  "request": {
+    "type": "http",
+    "url": "https://api.abuseipdb.com/api/v2/check",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": ""
+    },
+    "method": "GET",
+    "queryParams": [],
+    "headers": [
+      {
+        "id": 1769891723502,
+        "key": "Key",
+        "value": "{{api_key}}",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      },
+      {
+        "id": 1769891766321,
+        "key": "Accept",
+        "value": "application/json",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      }
+    ],
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    },
+    "pathVariables": []
+  }
+}

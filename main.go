@@ -16,8 +16,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const abuseURL = "https://api.abuseipdb.com/api/v2/check"
-
 type abuseResp struct {
 	Data struct {
 		AbuseConfidenceScore int `json:"abuseConfidenceScore"`
@@ -64,6 +62,7 @@ func main() {
 	maxAge := env.GetInt("ABUSEIPDB_MAX_AGE_DAYS", 90, false)
 	cacheTTL := time.Duration(env.GetInt("CACHE_TTL_SECONDS", 3600, false)) * time.Second
 	valkeyURL := env.GetStr("VALKEY_URL", "redis://valkey:6379/0", false)
+	port := env.GetInt("PORT", 8080, false)
 
 	opts, err := redis.ParseURL(valkeyURL)
 	if err != nil {
@@ -112,9 +111,11 @@ func main() {
 		_, _ = w.Write([]byte("OK"))
 	})
 
-	log.Println("listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Printf("listening on :%d", port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
+
+const abuseURL = "https://api.abuseipdb.com/api/v2/check"
 
 func queryAbuseIPDB(ctx context.Context, apiKey, ip string, maxAge int) (abuseResp, error) {
 	req, _ := http.NewRequestWithContext(ctx, "GET", abuseURL, nil)

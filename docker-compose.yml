@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  traefik:
+    image: ghcr.io/traefik/traefik:v3.6
+    command:
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:8080"
+      - "--entrypoints.web.http.middlewares=abuseipdb-check"
+    ports:
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    labels:
+      - "traefik.enable=true"
+
+      # Traefik dashboard
+      - "traefik.http.routers.traefik.rule=Host(`localhost`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`))"
+      - "traefik.http.routers.traefik.service=api@internal"
+
+      # Global middleware definition (Docker provider)
+      - "traefik.http.middlewares.abuseipdb-check.forwardauth.address=http://abuseipdb-auth:8080/check"
+      - "traefik.http.middlewares.abuseipdb-check.forwardauth.trustforwardheader=false"
+      - "traefik.http.middlewares.abuseipdb-check.forwardauth.authresponseheaders=X-Abuse-Score,X-Abuse-Reports"
+
+  valkey:
+    image: ghcr.io/valkey-io/valkey:9-alpine
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+
+  abuseipdb-auth:
+    build:
+      dockerfile: ./DockerFile
+      context: .
+    environment:
+      - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
+      - ABUSE_SCORE_THRESHOLD=25
+      - ABUSEIPDB_MAX_AGE_DAYS=90
+      - CACHE_TTL_SECONDS=86400
+      - VALKEY_URL=redis://valkey:6379/0
+    depends_on:
+      - valkey
+    ports:
+      - 8081:8080
+
+  whoami:
+    image: ghcr.io/traefik/whoami:v1.10
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`localhost`) && PathPrefix(`/whoami`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
