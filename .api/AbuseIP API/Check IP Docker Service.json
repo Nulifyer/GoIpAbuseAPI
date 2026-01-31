@@ -2,7 +2,7 @@
   "name": "Check IP Docker Service",
   "request": {
     "type": "http",
-    "url": "https://api.abuseipdb.com/api/v2/check",
+    "url": "http://localhost:8080/whoami",
     "scripts": {
       "preRequest": "",
       "postResponse": ""

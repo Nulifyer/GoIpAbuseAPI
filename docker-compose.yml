@@ -11,6 +11,7 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:8080"
+      - "--entrypoints.web.forwardedheaders.insecure=true"
       - "--entrypoints.web.http.middlewares=abuseipdb-check"
     ports:
       - "8080:8080"
