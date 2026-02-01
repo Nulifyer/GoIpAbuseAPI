@@ -34,6 +34,7 @@ services:
     command: ["valkey-server", "--save", "", "--appendonly", "no"]
 
   abuseipdb-auth:
+    image: ghcr.io/nulifyer/goipabuseapi:latest
     build:
       dockerfile: ./DockerFile
       context: .
