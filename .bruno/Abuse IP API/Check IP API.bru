@@ -1,0 +1,26 @@
+meta {
+  name: Check IP API
+  type: http
+  seq: 2
+}
+
+get {
+  url: https://api.abuseipdb.com/api/v2/check?ipAddress=45.156.129.130&maxAgeInDays=90
+  body: none
+  auth: apikey
+}
+
+params:query {
+  ipAddress: 45.156.129.130
+  maxAgeInDays: 90
+}
+
+headers {
+  Accept: application/json
+}
+
+auth:apikey {
+  key: Key
+  value: {{api_key}}
+  placement: header
+}

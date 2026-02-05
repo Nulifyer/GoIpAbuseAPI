@@ -1,0 +1,13 @@
+meta {
+  name: Check IP Docker Service
+  type: http
+}
+
+get {
+  url: http://localhost:8080/whoami
+}
+
+headers {
+  Key: {{api_key}}
+  Accept: application/json
+}
