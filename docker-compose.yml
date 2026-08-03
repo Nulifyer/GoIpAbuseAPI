@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   traefik:
-    image: ghcr.io/traefik/traefik:v3.6
+    image: ghcr.io/traefik/traefik:v3.7
     command:
       - "--log.level=DEBUG"
       - "--accesslog=true"
@@ -11,8 +11,7 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:8080"
-      - "--entrypoints.web.forwardedheaders.insecure=true"
-      - "--entrypoints.web.http.middlewares=abuseipdb-check"
+      - "--entrypoints.web.http.middlewares=abuseipdb-check@docker"
     ports:
       - "8080:8080"
     volumes:
@@ -27,7 +26,7 @@ services:
       # Global middleware definition (Docker provider)
       - "traefik.http.middlewares.abuseipdb-check.forwardauth.address=http://abuseipdb-auth:8080/check"
       - "traefik.http.middlewares.abuseipdb-check.forwardauth.trustforwardheader=false"
-      - "traefik.http.middlewares.abuseipdb-check.forwardauth.authresponseheaders=X-Abuse-Score,X-Abuse-Reports"
+      - "traefik.http.middlewares.abuseipdb-check.forwardauth.authresponseheaders=X-Abuse-Decision,X-Abuse-Source,X-Abuse-Score,X-Abuse-Reports"
 
   valkey:
     image: ghcr.io/valkey-io/valkey:9-alpine
@@ -36,7 +35,7 @@ services:
   abuseipdb-auth:
     image: ghcr.io/nulifyer/goipabuseapi:latest
     build:
-      dockerfile: ./DockerFile
+      dockerfile: ./Dockerfile
       context: .
     environment:
       - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
@@ -44,10 +43,11 @@ services:
       - ABUSEIPDB_MAX_AGE_DAYS=90
       - CACHE_TTL_SECONDS=86400
       - VALKEY_URL=redis://valkey:6379/0
+      - LOG_FORMAT=json
+      - METRICS_ENABLED=true
+      - METRICS_ADDR=:9090
     depends_on:
       - valkey
-    ports:
-      - 8081:8080
 
   whoami:
     image: ghcr.io/traefik/whoami:v1.10

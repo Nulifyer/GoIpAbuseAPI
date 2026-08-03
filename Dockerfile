@@ -5,7 +5,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app
 
-FROM gcr.io/distroless/base-debian12
+FROM gcr.io/distroless/base-debian12:nonroot
 COPY --from=build /app /app
-EXPOSE 8080
+EXPOSE 8080 9090
 ENTRYPOINT ["/app"]
