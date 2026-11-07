@@ -163,7 +163,7 @@ func main() {
 		cacheTTL:  cacheTTL,
 		skipCIDRs: skipCIDRs,
 		cache:     cache,
-		query:     queryAbuseIPDB,
+		query:     newProviderClient(&http.Client{Timeout: 3 * time.Second}, abuseURL, metrics, cache).query,
 		logger:    logger,
 		metrics:   metrics,
 	}
@@ -224,8 +224,11 @@ func lookupAbuseData(
 		start := time.Now()
 		data, err := query(ctx, apiKey, ip, maxAge)
 		if err != nil {
-			metrics.recordAPI("error", time.Since(start))
-			return abuseLookup{}, fmt.Errorf("%w: %v", errAbuseLookup, err)
+			var unavailable *providerUnavailable
+			if !errors.As(err, &unavailable) || !unavailable.suppressed {
+				metrics.recordAPI("error", time.Since(start))
+			}
+			return abuseLookup{}, fmt.Errorf("%w: %w", errAbuseLookup, err)
 		}
 		metrics.recordAPI("success", time.Since(start))
 		logger.Debugf("abuseipdb ok ip=%s latency=%s", ip, time.Since(start))
@@ -288,34 +291,6 @@ func ipInCIDRs(ip net.IP, nets []*net.IPNet) bool {
 		}
 	}
 	return false
-}
-
-func queryAbuseIPDB(ctx context.Context, apiKey, ip string, maxAge int) (abuseResp, error) {
-	req, _ := http.NewRequestWithContext(ctx, "GET", abuseURL, nil)
-	q := req.URL.Query()
-	q.Set("ipAddress", ip)
-	q.Set("maxAgeInDays", strconv.Itoa(maxAge))
-	req.URL.RawQuery = q.Encode()
-
-	req.Header.Set("Key", apiKey)
-	req.Header.Set("Accept", "application/json")
-
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return abuseResp{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		return abuseResp{}, fmt.Errorf("status %d", resp.StatusCode)
-	}
-
-	var out abuseResp
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return abuseResp{}, err
-	}
-	return out, nil
 }
 
 func clientIP(r *http.Request) string {

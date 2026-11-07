@@ -124,3 +124,30 @@ Metrics include:
 IP addresses, hosts, paths, and user agents are deliberately excluded from metric labels to prevent unbounded cardinality. Use structured logs for per-IP and per-request analysis.
 
 GeoIP and crawler classification are intentionally left to the downstream log pipeline. Keeping those lookups out of the ForwardAuth request path avoids DNS, feed-refresh, and geolocation failures affecting request authorization.
+
+## Provider outage and quota handling
+
+The provider client serializes fresh lookups across IPs and reads the documented
+X-RateLimit-Remaining, X-RateLimit-Reset and Retry-After headers. A successful final
+quota slot is cached normally. Later fresh lookups are suppressed until reset.
+A 429 without usable timing waits one hour. Transport/server/invalid-response
+failures pause fresh lookups for 30 seconds; authentication failures pause five
+minutes. Valid Retry-After timing can extend these pauses. Caller cancellation
+alone does not start a provider cooldown.
+
+Fresh lookup queue waits are bounded to three seconds; a saturated queue returns
+unavailable without an outbound call. Cached allowed and blocked decisions remain authoritative until their existing
+TTL expires. An uncached lookup during cooldown returns 503 with Retry-After;
+it never silently allows the source. No hostname bypass is introduced. Quota and
+cooldown state are stored in Valkey as abuseipdb:provider_state and restored by a
+new process. Existing private CIDR bypass policy is unchanged.
+
+Metrics expose goipabuse_quota_remaining (-1 means unknown),
+goipabuse_quota_reset_timestamp_seconds, goipabuse_provider_resume_timestamp_seconds
+and goipabuse_api_suppressed_total. Suppressed lookups do not increment the upstream
+API request counter. Only this Go service calls AbuseIPDB; Grafana reads metrics.
+See https://docs.abuseipdb.com/#api-daily-rate-limits for the provider header contract.
+
+The example Compose service persists Valkey at /data with AOF every-second sync.
+Existing deployments must snapshot and migrate cache data before adding a new mount;
+a new empty volume alone does not preserve an existing container's cache.

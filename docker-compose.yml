@@ -30,7 +30,9 @@ services:
 
   valkey:
     image: ghcr.io/valkey-io/valkey:9-alpine
-    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    command: ["valkey-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - valkey-data:/data
 
   abuseipdb-auth:
     image: ghcr.io/nulifyer/goipabuseapi:latest
@@ -55,3 +57,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.whoami.rule=Host(`localhost`) && PathPrefix(`/whoami`)"
       - "traefik.http.routers.whoami.entrypoints=web"
+
+volumes:
+  valkey-data:

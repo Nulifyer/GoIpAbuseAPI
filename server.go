@@ -82,8 +82,16 @@ func (c *checker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, errAbuseLookup):
 			source, message = lookupSourceAPI, "AbuseIPDB error"
 		}
-		c.recordError(w, metadata, source, err.Error(), http.StatusBadGateway, time.Since(started))
-		http.Error(w, message, http.StatusBadGateway)
+		status := http.StatusBadGateway
+		var unavailable *providerUnavailable
+		if errors.As(err, &unavailable) {
+			status = http.StatusServiceUnavailable
+			seconds := max(1, int(time.Until(unavailable.until).Seconds()+0.999))
+			w.Header().Set("Retry-After", strconv.Itoa(seconds))
+			message = "Reputation unavailable; no cached decision"
+		}
+		c.recordError(w, metadata, source, err.Error(), status, time.Since(started))
+		http.Error(w, message, status)
 		return
 	}
 

@@ -24,11 +24,19 @@ type serviceMetrics struct {
 	sharedLookupResults prometheus.Counter
 	inFlight            prometheus.Gauge
 	scores              prometheus.Histogram
+	quotaRemaining      prometheus.Gauge
+	quotaReset          prometheus.Gauge
+	providerResume      prometheus.Gauge
+	suppressedCalls     prometheus.Counter
 }
 
 func newServiceMetrics() *serviceMetrics {
 	metrics := &serviceMetrics{
-		registry: prometheus.NewRegistry(),
+		registry:        prometheus.NewRegistry(),
+		quotaRemaining:  prometheus.NewGauge(prometheus.GaugeOpts{Namespace: metricsNamespace, Name: "quota_remaining", Help: "Last observed provider quota remaining; -1 means unknown."}),
+		quotaReset:      prometheus.NewGauge(prometheus.GaugeOpts{Namespace: metricsNamespace, Name: "quota_reset_timestamp_seconds", Help: "Last observed provider quota reset timestamp; zero means unknown."}),
+		providerResume:  prometheus.NewGauge(prometheus.GaugeOpts{Namespace: metricsNamespace, Name: "provider_resume_timestamp_seconds", Help: "Fresh upstream lookups suppressed until this timestamp."}),
+		suppressedCalls: prometheus.NewCounter(prometheus.CounterOpts{Namespace: metricsNamespace, Name: "api_suppressed_total", Help: "Fresh upstream calls suppressed during cooldown or bounded queue saturation."}),
 		decisions: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Name:      "decisions_total",
@@ -74,7 +82,9 @@ func newServiceMetrics() *serviceMetrics {
 		}),
 	}
 
+	metrics.quotaRemaining.Set(-1)
 	metrics.registry.MustRegister(
+		metrics.quotaRemaining, metrics.quotaReset, metrics.providerResume, metrics.suppressedCalls,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		metrics.decisions,
